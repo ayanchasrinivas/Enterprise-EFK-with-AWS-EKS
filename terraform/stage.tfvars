@@ -1,0 +1,11 @@
+environment             = "staging"
+cluster_name            = "elk-efk-stage"
+vpc_cidr                = "10.2.0.0/16"
+es_hot_instance_type    = "r6g.xlarge"
+es_warm_instance_type   = "r6g.large"
+es_master_instance_type = "m6g.large"
+logging_instance_type   = "m6g.large"
+system_instance_type    = "m6g.large"
+es_hot_node_count       = 2
+es_warm_node_count      = 1
+es_master_node_count    = 3

@@ -1,0 +1,11 @@
+environment             = "prod"
+cluster_name            = "elk-efk-prod"
+vpc_cidr                = "10.0.0.0/16"
+es_hot_instance_type    = "r6g.2xlarge"
+es_warm_instance_type   = "r6g.xlarge"
+es_master_instance_type = "m6g.large"
+logging_instance_type   = "m6g.xlarge"
+system_instance_type    = "m6g.large"
+es_hot_node_count       = 3
+es_warm_node_count      = 2
+es_master_node_count    = 3
