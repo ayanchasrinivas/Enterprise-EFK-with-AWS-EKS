@@ -1,0 +1,108 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: logstash-config
+  namespace: logging
+data:
+  logstash.yml: |
+    http.host: "0.0.0.0"
+    xpack.monitoring.enabled: true
+    xpack.monitoring.elasticsearch.hosts: ["https://elasticsearch-master:9200"]
+    xpack.monitoring.elasticsearch.username: "logstash_system"
+    xpack.monitoring.elasticsearch.password: "${LOGSTASH_MONITOR_PASSWORD}"
+    xpack.monitoring.elasticsearch.ssl.certificate_authority: /usr/share/logstash/config/certs/ca.crt
+    queue.type: persisted
+    queue.max_bytes: 4gb
+    pipeline.workers: 4
+    pipeline.batch.size: 1000
+  
+  pipeline.yml: |
+    - pipeline.id: kubernetes-logs
+      path.config: "/usr/share/logstash/pipeline/kubernetes.conf"
+      pipeline.workers: 4
+    - pipeline.id: application-logs
+      path.config: "/usr/share/logstash/pipeline/application.conf"
+      pipeline.workers: 2
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: logstash-pipeline
+  namespace: logging
+data:
+  kubernetes.conf: |
+    input {
+      beats {
+        port => 5044
+        ssl  => true
+        ssl_certificate => "/usr/share/logstash/config/certs/tls.crt"
+        ssl_key         => "/usr/share/logstash/config/certs/tls.key"
+        ssl_certificate_authorities => ["/usr/share/logstash/config/certs/ca.crt"]
+        ssl_verify_mode => "peer"
+      }
+    }
+    filter {
+      if [log][file][path] =~ /containers/ {
+        json {
+          source => "message"
+          skip_on_invalid_json => true
+        }
+      }
+      if [kubernetes][labels][app] == "nginx" {
+        grok {
+          match => {
+            "message" => '%{IPORHOST:client_ip} - %{DATA:user_name} \[%{HTTPDATE:timestamp}\] "%{WORD:method} %{DATA:url} HTTP/%{NUMBER:http_version}" %{NUMBER:response_code} %{NUMBER:bytes}'
+          }
+        }
+        geoip { source => "client_ip" }
+        mutate {
+          convert => { "response_code" => "integer" "bytes" => "integer" }
+        }
+      }
+      mutate {
+        add_field => { "environment" => "production" "cluster" => "elk-efk-prod" }
+      }
+      if [url] == "/health" or [url] == "/healthz" { drop {} }
+    }
+    output {
+      elasticsearch {
+        hosts    => ["https://elasticsearch-master:9200"]
+        user     => "logstash_writer"
+        password => "${LOGSTASH_ES_PASSWORD}"
+        ssl      => true
+        cacert   => "/usr/share/logstash/config/certs/ca.crt"
+        data_stream => true
+        data_stream_type      => "logs"
+        data_stream_dataset   => "%{[kubernetes][namespace_name]}"
+        data_stream_namespace => "production"
+      }
+    }
+  
+  application.conf: |
+    input {
+      http {
+        port  => 8080
+        codec => json
+      }
+      tcp {
+        port  => 5000
+        codec => json_lines
+      }
+    }
+    filter {
+      date {
+        match => ["timestamp", "ISO8601", "UNIX"]
+        target => "@timestamp"
+      }
+    }
+    output {
+      elasticsearch {
+        hosts    => ["https://elasticsearch-master:9200"]
+        user     => "logstash_writer"
+        password => "${LOGSTASH_ES_PASSWORD}"
+        ssl      => true
+        cacert   => "/usr/share/logstash/config/certs/ca.crt"
+        index    => "app-logs-%{+YYYY.MM.dd}"
+      }
+    }
