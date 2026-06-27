@@ -1,0 +1,44 @@
+pipeline {
+    agent any
+    parameters {
+        choice (
+            name: "ACTION",
+            choices: ["START", "STOP"],
+            description: "CHOOSE EC2 ACTION"
+        )
+
+        string (
+            name: "INSTANCE_ID",
+            defaultValue: "i-01e98c8f861210ed2",
+            description: "EC2 Instance ID"
+        )
+    }
+
+    environment {
+        AWS_REGION = "ap-south-1"
+    }
+
+    stages {
+        stage("Manage EC2") {
+            steps {
+                script {
+                    if(params.ACTION == "START") {
+                        sh """
+                        aws ec2 start-instances \
+                        --instance-ids ${params.INSTANCE_ID} \
+                        --region $AWS_REGION
+                        """
+                    }
+
+                    if(params.ACTION == "STOP") {
+                        sh """
+                        aws ec2 stop-instances \
+                        --instance-ids ${params.INSTANCE_ID} \
+                        --region $AWS_REGION
+                        """
+                    }
+                }
+            }
+        }
+    }
+}
