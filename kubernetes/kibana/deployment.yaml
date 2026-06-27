@@ -1,0 +1,98 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kibana
+  namespace: logging
+  labels:
+    app: kibana
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: kibana
+  template:
+    metadata:
+      labels:
+        app: kibana
+    spec:
+      nodeSelector:
+        elk/role: logging
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - kibana
+              topologyKey: kubernetes.io/hostname
+
+      containers:
+        - name: kibana
+          image: docker.elastic.co/kibana/kibana:8.12.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5601
+              name: https
+          env:
+            - name: ELASTICSEARCH_HOSTS
+              value: "https://elasticsearch-master:9200"
+            - name: ELASTICSEARCH_USERNAME
+              value: "kibana_system"
+            - name: ELASTICSEARCH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: elasticsearch-master-credentials
+                  key: password
+            - name: KIBANA_ENCRYPTION_KEY
+              valueFrom:
+                secretkeyRef:
+                  name: kibana-secrets
+                  key: encryptionKey
+            - name: SERVER_SSL_ENABLED
+              value: "true"
+            - name: SERVER_SSL_CERTIFICATE
+              value: /usr/share/kibana/config/certs/tls.crt
+            - name: SERVER_SSL_KEY
+              value: /usr/share/kibana/config/certs/tls.key
+            - name: ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES
+              value: /usr/share/kibana/config/certs/ca.crt
+            - name: XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY
+              valueFrom:
+                secretkeyRef:
+                  name: kibana-secrets
+                  key: encryptionKey
+            - name: TELEMETRY_ENABLED
+              value: "false"
+            
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "16Gi"
+            limits:
+              cpu: "2000m"
+              memory: "2Gi"
+
+          readinessProbe:
+            httpGet:
+              scheme: HTTPS
+              path: /api/status
+              port: 5601
+            initialDelaySeconds: 90
+            periodSeconds: 10
+            successThreshold: 3
+            failureThreshold: 3
+          
+          volumeMounts:
+          - name: kibana-certs
+            mountPath: /usr/share/kibana/config/certs
+            readOnly: true
+  
+  volumes:
+    - name: kibana-certs
+      secret:
+        secretName: elk-tls-secret 
