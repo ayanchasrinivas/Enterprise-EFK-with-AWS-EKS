@@ -1,8 +1,8 @@
 # Enterprise EFK Stack with AWS EKS
 
-<img width="886" height="200" alt="EFK" src="https://github.com/user-attachments/assets/790be226-281e-4439-934e-44aba8bf8fac" />
+<img width="886" height="250" alt="EFK" src="https://github.com/user-attachments/assets/790be226-281e-4439-934e-44aba8bf8fac" />
 <br>
-
+<br>
 A Production-Grade Centralized Logging and Observability Platform that Deploys, Configures, and Manages a Complete **EFK (Elasticsearch, Fluent Bit, Kibana)** Stack on **Amazon EKS** using **Terraform, Kubernetes, and Helm**. This repository demonstrates Enterprise Logging Architecture patterns commonly adopted by large-scale product companies and Enterprise Organizations for collecting, processing, storing, searching, and visualizing Kubernetes logs.
 
 The project is built using a Modular Infrastructure and Kubernetes Architecture that promotes Scalability, High Availability, Security, and Operational Excellence across Development, Staging, and Production Environments.
