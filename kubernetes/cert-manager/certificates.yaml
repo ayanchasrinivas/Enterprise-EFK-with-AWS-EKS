@@ -1,0 +1,98 @@
+# Wildcard certificate for all ELK/EFK subdomains
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: elk-wildcard-cert
+  namespace: logging
+spec:
+  secretName: elk-tls-secret
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  commonName: "*.ayanchasrinivas.space"
+  dnsNames:
+    - "*.ayanchasrinivas.space"
+    - ayanchasrinivas.space
+    - kibana.ayanchasrinivas.space
+    - elasticsearch.ayanchasrinivas.space
+    - logstash.ayanchasrinivas.space
+    - monitor.ayanchasrinivas.space
+  duration: 2160h      # 90 days
+  renewBefore: 720h    # renew 30 days before expiry
+  privateKey:
+    algorithm: RSA
+    encoding: PKCS1
+    size: 4096
+---
+# Elasticsearch inter-node TLS (self-signed CA)
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: elasticsearch-ca-issuer
+  namespace: logging
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: elasticsearch-ca
+  namespace: logging
+spec:
+  isCA: true
+  commonName: elasticsearch-ca
+  secretName: elasticsearch-ca-secret
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: elasticsearch-ca-issuer
+    kind: Issuer
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: elasticsearch-issuer
+  namespace: logging
+spec:
+  ca:
+    secretName: elasticsearch-ca-secret
+---
+# Elasticsearch HTTP TLS
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: elasticsearch-http-cert
+  namespace: logging
+spec:
+  secretName: elasticsearch-http-certs
+  issuerRef:
+    name: elasticsearch-issuer
+    kind: Issuer
+  dnsNames:
+    - elasticsearch-master
+    - elasticsearch-master.logging
+    - elasticsearch-master.logging.svc
+    - elasticsearch-master.logging.svc.cluster.local
+    - "*.elasticsearch-master-headless"
+    - "*.elasticsearch-master-headless.logging"
+  duration: 8760h   # 1 year
+  renewBefore: 720h
+---
+# Elasticsearch transport (inter-node) TLS
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: elasticsearch-transport-cert
+  namespace: logging
+spec:
+  secretName: elasticsearch-transport-certs
+  issuerRef:
+    name: elasticsearch-issuer
+    kind: Issuer
+  dnsNames:
+    - "*.elasticsearch-master-headless"
+    - "*.elasticsearch-master-headless.logging"
+    - "*.elasticsearch-master-headless.logging.svc.cluster.local"
+  duration: 8760h
+  renewBefore: 720h
