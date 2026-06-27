@@ -1,0 +1,241 @@
+# Production Fluent Bit Helm values
+# Chart: fluent/fluent-bit v0.43.0
+# DaemonSet: one pod on every Kubernetes node
+
+image:
+  repository: cr.fluentbit.io/fluent/fluent-bit
+  tag: "3.0.3"
+  pullPolicy: IfNotPresent
+
+# DaemonSet: runs on every node
+kind: DaemonSet
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+# Tolerations: allow scheduling on ALL nodes including tainted ES nodes
+tolerations:
+  - operator: Exists
+
+# Host paths to read logs
+volumes:
+  - name: varlog
+    hostPath:
+      path: /var/log
+  - name: varlibdockercontainers
+    hostPath:
+      path: /var/lib/docker/containers
+  - name: etcmachineID
+    hostPath:
+      path: /etc/machine-id
+      type: File
+  - name: fluent-bit-certs
+    secret:
+      secretName: elasticsearch-http-certs
+
+volumeMounts:
+  - name: varlog
+    mountPath: /var/log
+    readOnly: true
+  - name: varlibdockercontainers
+    mountPath: /var/lib/docker/containers
+    readOnly: true
+  - name: etcmachineID
+    mountPath: /etc/machine-id
+    readOnly: true
+  - name: fluent-bit-certs
+    mountPath: /fluent-bit/certs
+    readOnly: true
+
+serviceAccount:
+  create: true
+  name: fluent-bit
+
+# RBAC: allow reading pods and namespaces for metadata enrichment
+rbac:
+  create: true
+  nodeAccess: true
+  eventsAccess: true
+
+# Fluent Bit main configuration
+config:
+  service: |
+    [SERVICE]
+        Daemon       Off
+        Flush        5
+        Log_Level    warn
+        Parsers_File /fluent-bit/etc/parsers.conf
+        HTTP_Server  On
+        HTTP_Listen  0.0.0.0
+        HTTP_Port    2020
+        Health_Check On
+        storage.path             /var/fluent-bit/state/flb-storage/
+        storage.sync             normal
+        storage.checksum         off
+        storage.backlog.mem_limit 10M
+
+  inputs: |
+    [INPUT]
+        Name              tail
+        Tag               kube.*
+        Path              /var/log/containers/*.log
+        # Exclude Fluent Bit's own logs to avoid recursion
+        Exclude_Path      /var/log/containers/fluent-bit-*
+        Parser            cri
+        DB                /var/fluent-bit/state/flb_kube.db
+        Mem_Buf_Limit     50MB
+        Skip_Long_Lines   On
+        Refresh_Interval  10
+        Rotate_Wait       30
+        storage.type      filesystem
+        Read_from_Head    False
+
+    [INPUT]
+        Name              systemd
+        Tag               host.*
+        Systemd_Filter    _SYSTEMD_UNIT=kubelet.service
+        Systemd_Filter    _SYSTEMD_UNIT=docker.service
+        DB                /var/fluent-bit/state/systemd.db
+        Path              /var/log/journal
+        Read_From_Tail    On
+
+  filters: |
+    [FILTER]
+        Name                kubernetes
+        Match               kube.*
+        Kube_URL            https://kubernetes.default.svc:443
+        Kube_CA_File        /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        Kube_Token_File     /var/run/secrets/kubernetes.io/serviceaccount/token
+        Kube_Tag_Prefix     kube.var.log.containers.
+        Merge_Log           On
+        Merge_Log_Key       log_processed
+        Keep_Log            Off
+        K8S-Logging.Parser  On
+        K8S-Logging.Exclude On
+        Annotations         Off
+        Labels              On
+
+    # Drop health check noise
+    [FILTER]
+        Name    grep
+        Match   kube.*
+        Exclude log /health|/healthz|/ready|/ping|/metrics
+
+    # Enrich with cluster info
+    [FILTER]
+        Name            record_modifier
+        Match           kube.*
+        Record          cluster elk-efk-prod
+        Record          environment production
+
+    # Parse JSON logs from apps that emit structured JSON
+    [FILTER]
+        Name            parser
+        Match           kube.*
+        Key_Name        log
+        Parser          json
+        Reserve_Data    On
+        Preserve_Key    On
+
+    # Throttle to avoid overwhelming Elasticsearch during bursts
+    [FILTER]
+        Name      throttle
+        Match     kube.*
+        Rate      10000
+        Window    300
+        Interval  1s
+
+  outputs: |
+    # Primary output: Elasticsearch via data streams
+    [OUTPUT]
+        Name              es
+        Match             kube.*
+        Host              elasticsearch-master.logging.svc.cluster.local
+        Port              9200
+        HTTP_User         fluentbit_writer
+        HTTP_Passwd       ${ES_PASSWORD}
+        TLS               On
+        TLS.verify        On
+        TLS.ca_file       /fluent-bit/certs/ca.crt
+        Logstash_Format   Off
+        Data_Stream_Enable On
+        Data_Stream_Name  logs
+        Data_Stream_Dataset kubernetes.${kubernetes['namespace_name']}
+        Data_Stream_Namespace production
+        Retry_Limit       10
+        Compress          gzip
+        Buffer_Size       False
+        Workers           4
+
+    [OUTPUT]
+        Name              es
+        Match             host.*
+        Host              elasticsearch-master.logging.svc.cluster.local
+        Port              9200
+        HTTP_User         fluentbit_writer
+        HTTP_Passwd       ${ES_PASSWORD}
+        TLS               On
+        TLS.verify        On
+        TLS.ca_file       /fluent-bit/certs/ca.crt
+        Data_Stream_Enable On
+        Data_Stream_Name  logs
+        Data_Stream_Dataset system.host
+        Data_Stream_Namespace production
+        Retry_Limit       10
+
+  customParsers: |
+    [PARSER]
+        Name        cri
+        Format      regex
+        Regex       ^(?<time>[^ ]+) (?<stream>stdout|stderr) (?<logtag>[^ ]*) (?<log>.*)$
+        Time_Key    time
+        Time_Format %Y-%m-%dT%H:%M:%S.%L%z
+
+    [PARSER]
+        Name        json
+        Format      json
+        Time_Key    time
+        Time_Format %Y-%m-%dT%H:%M:%S.%L
+        Time_Keep   On
+
+    [PARSER]
+        Name        nginx
+        Format      regex
+        Regex       ^(?<host>[^ ]*) [^ ]* (?<user>[^ ]*) \[(?<time>[^\]]*)\] "(?<method>\S+)(?: +(?<path>[^\"]*?)(?: +\S*)?)?" (?<code>[^ ]*) (?<size>[^ ]*)(?: "(?<referer>[^\"]*)" "(?<agent>[^\"]*)")?$
+        Time_Key    time
+        Time_Format %d/%b/%Y:%H:%M:%S %z
+
+# Environment variables from secret
+envFrom:
+  - secretRef:
+      name: fluent-bit-secrets
+
+# Liveness/readiness from HTTP server
+livenessProbe:
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 30
+
+readinessProbe:
+  httpGet:
+    path: /api/v1/health
+    port: http
+  initialDelaySeconds: 10
+
+# Prometheus metrics endpoint
+service:
+  type: ClusterIP
+  port: 2020
+  labels:
+    prometheus.io/scrape: "true"
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/path: "/api/v1/metrics/prometheus"
+  prometheus.io/port: "2020"

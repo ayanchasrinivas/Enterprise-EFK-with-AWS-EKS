@@ -1,0 +1,138 @@
+# Production Kibana Helm values
+# Chart: elastic/kibana v8.5.1+
+
+kibanaVersion: "8.12.0"
+image: "docker.elastic.co/kibana/kibana"
+imageTag: "8.12.0"
+
+replicas: 2
+
+resources:
+  requests:
+    cpu: "500m"
+    memory: "1Gi"
+  limits:
+    cpu: "2000m"
+    memory: "2Gi"
+
+protocol: https
+
+# Point to Elasticsearch
+elasticsearchHosts: "https://elasticsearch-master:9200"
+
+# Kibana configuration
+kibanaConfig:
+  kibana.yml: |
+    server.name: kibana
+    server.host: "0.0.0.0"
+    server.ssl.enabled: true
+    server.ssl.certificate: /usr/share/kibana/config/certs/tls.crt
+    server.ssl.key: /usr/share/kibana/config/certs/tls.key
+
+    elasticsearch.hosts: ["https://elasticsearch-master:9200"]
+    elasticsearch.username: "kibana_system"
+    elasticsearch.password: "${KIBANA_SYSTEM_PASSWORD}"
+    elasticsearch.ssl.certificateAuthorities:
+      - /usr/share/kibana/config/certs/ca.crt
+    elasticsearch.ssl.verificationMode: certificate
+
+    # Saved objects encryption (required for alerting, reporting)
+    xpack.encryptedSavedObjects.encryptionKey: "${KIBANA_ENCRYPTION_KEY}"
+    xpack.reporting.encryptionKey: "${KIBANA_REPORTING_KEY}"
+    xpack.security.encryptionKey: "${KIBANA_SECURITY_KEY}"
+
+    # Enable all X-Pack features
+    xpack.security.enabled: true
+    xpack.fleet.enabled: true
+    xpack.apm.enabled: true
+    xpack.ml.enabled: true
+    xpack.monitoring.enabled: true
+
+    # Session settings
+    xpack.security.session.idleTimeout: "1h"
+    xpack.security.session.lifespan: "30d"
+
+    # Logging
+    logging.appenders.file.type: file
+    logging.appenders.file.fileName: /usr/share/kibana/logs/kibana.log
+    logging.appenders.file.layout.type: json
+    logging.root.appenders: [default, file]
+    logging.root.level: info
+
+    # Telemetry off for security-sensitive installs
+    telemetry.enabled: false
+    telemetry.optIn: false
+
+# Environment variables (populated from K8s Secrets)
+extraEnvs:
+  - name: KIBANA_SYSTEM_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: elasticsearch-master-credentials
+        key: password
+  - name: KIBANA_ENCRYPTION_KEY
+    valueFrom:
+      secretKeyRef:
+        name: kibana-secrets
+        key: encryptionKey
+  - name: KIBANA_REPORTING_KEY
+    valueFrom:
+      secretKeyRef:
+        name: kibana-secrets
+        key: reportingKey
+  - name: KIBANA_SECURITY_KEY
+    valueFrom:
+      secretKeyRef:
+        name: kibana-secrets
+        key: securityKey
+
+# Mount TLS cert
+extraVolumes:
+  - name: kibana-certs
+    secret:
+      secretName: elk-tls-secret
+
+extraVolumeMounts:
+  - name: kibana-certs
+    mountPath: /usr/share/kibana/config/certs
+    readOnly: true
+
+# Schedule on logging nodes
+nodeSelector:
+  "elk/role": "logging"
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - kibana
+          topologyKey: kubernetes.io/hostname
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# Health checks
+readinessProbe:
+  scheme: HTTPS
+  path: /api/status
+  initialDelaySeconds: 60
+  periodSeconds: 10
+  successThreshold: 3
+  failureThreshold: 3
+
+# Service
+service:
+  type: ClusterIP
+  port: 5601
+  protocol: HTTPS
+
+# Ingress is managed separately in kubernetes/ingress/
+ingress:
+  enabled: false

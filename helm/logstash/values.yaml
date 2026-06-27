@@ -1,0 +1,225 @@
+# Production Logstash Helm values
+# Chart: elastic/logstash v8.5.1+
+
+logstashVersion: "8.12.0"
+image: "docker.elastic.co/logstash/logstash"
+imageTag: "8.12.0"
+
+replicas: 2
+
+resources:
+  requests:
+    cpu: "1000m"
+    memory: "2Gi"
+  limits:
+    cpu: "3000m"
+    memory: "4Gi"
+
+logstashJavaOpts: "-Xmx2g -Xms2g -XX:+UseG1GC"
+
+# Pipeline configuration
+logstashConfig:
+  logstash.yml: |
+    http.host: "0.0.0.0"
+    xpack.monitoring.enabled: true
+    xpack.monitoring.elasticsearch.hosts: ["https://elasticsearch-master:9200"]
+    xpack.monitoring.elasticsearch.username: "logstash_system"
+    xpack.monitoring.elasticsearch.password: "${LOGSTASH_MONITOR_PASSWORD}"
+    xpack.monitoring.elasticsearch.ssl.certificate_authority: /usr/share/logstash/config/certs/ca.crt
+
+    # Persistent queue: survives restarts, no data loss
+    queue.type: persisted
+    queue.max_bytes: 4gb
+    queue.checkpoint.writes: 1024
+    path.queue: /usr/share/logstash/data/queue
+
+    pipeline.workers: 4
+    pipeline.batch.size: 1000
+    pipeline.batch.delay: 50
+
+  pipelines.yml: |
+    - pipeline.id: kubernetes-logs
+      path.config: "/usr/share/logstash/pipeline/kubernetes.conf"
+      pipeline.workers: 4
+    - pipeline.id: application-logs
+      path.config: "/usr/share/logstash/pipeline/application.conf"
+      pipeline.workers: 2
+
+logstashPipeline:
+  kubernetes.conf: |
+    input {
+      beats {
+        port => 5044
+        ssl => true
+        ssl_certificate => "/usr/share/logstash/config/certs/tls.crt"
+        ssl_key => "/usr/share/logstash/config/certs/tls.key"
+        ssl_certificate_authorities => ["/usr/share/logstash/config/certs/ca.crt"]
+        ssl_verify_mode => "peer"
+      }
+    }
+
+    filter {
+      # Parse Kubernetes structured JSON logs
+      if [log][file][path] =~ /containers/ {
+        json {
+          source => "message"
+          target => "parsed"
+          skip_on_invalid_json => true
+        }
+
+        if "_jsonparsefailure" not in [tags] {
+          mutate {
+            replace => { "message" => "%{[parsed][message]}" }
+            remove_field => ["parsed"]
+          }
+        }
+      }
+
+      # Nginx access log parsing
+      if [kubernetes][labels][app] == "nginx" {
+        grok {
+          match => {
+            "message" => '%{IPORHOST:client_ip} - %{DATA:user_name} \[%{HTTPDATE:timestamp}\] "%{WORD:method} %{DATA:url} HTTP/%{NUMBER:http_version}" %{NUMBER:response_code} %{NUMBER:bytes} "%{DATA:referrer}" "%{DATA:user_agent}"'
+          }
+        }
+        date {
+          match => ["timestamp", "dd/MMM/yyyy:HH:mm:ss Z"]
+          target => "@timestamp"
+        }
+        geoip {
+          source => "client_ip"
+          target => "geoip"
+          fields => ["city_name", "country_name", "country_code2", "location"]
+        }
+        mutate {
+          convert => {
+            "response_code" => "integer"
+            "bytes"         => "integer"
+          }
+          remove_field => ["timestamp"]
+        }
+        useragent {
+          source => "user_agent"
+          target => "user_agent_parsed"
+        }
+      }
+
+      # Add environment tag
+      mutate {
+        add_field => {
+          "environment" => "production"
+          "cluster"     => "elk-efk-prod"
+        }
+      }
+
+      # Drop noisy health check logs
+      if [url] == "/health" or [url] == "/healthz" or [url] == "/ready" {
+        drop {}
+      }
+    }
+
+    output {
+      elasticsearch {
+        hosts           => ["https://elasticsearch-master:9200"]
+        user            => "logstash_writer"
+        password        => "${LOGSTASH_ES_PASSWORD}"
+        ssl             => true
+        ssl_certificate_verification => true
+        cacert          => "/usr/share/logstash/config/certs/ca.crt"
+        data_stream     => true
+        data_stream_type => "logs"
+        data_stream_dataset => "%{[kubernetes][namespace_name]}"
+        data_stream_namespace => "production"
+        # Fallback index if data stream fails
+        index           => "logs-%{[kubernetes][namespace_name]}-%{+YYYY.MM.dd}"
+        retry_max_interval => 64
+        retry_initial_interval => 2
+        action          => "create"
+      }
+    }
+
+  application.conf: |
+    input {
+      http {
+        port  => 8080
+        ssl   => true
+        ssl_certificate => "/usr/share/logstash/config/certs/tls.crt"
+        ssl_key         => "/usr/share/logstash/config/certs/tls.key"
+        codec => json
+      }
+      tcp {
+        port  => 5000
+        codec => json_lines
+      }
+    }
+
+    filter {
+      date {
+        match => ["timestamp", "ISO8601", "UNIX", "UNIX_MS"]
+        target => "@timestamp"
+      }
+      mutate {
+        add_field => { "ingest_pipeline" => "application" }
+      }
+    }
+
+    output {
+      elasticsearch {
+        hosts    => ["https://elasticsearch-master:9200"]
+        user     => "logstash_writer"
+        password => "${LOGSTASH_ES_PASSWORD}"
+        ssl      => true
+        cacert   => "/usr/share/logstash/config/certs/ca.crt"
+        index    => "app-logs-%{[service]-%{+YYYY.MM.dd}"
+      }
+    }
+
+extraEnvs:
+  - name: LOGSTASH_ES_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: logstash-secrets
+        key: esPassword
+  - name: LOGSTASH_MONITOR_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: logstash-secrets
+        key: monitorPassword
+
+extraVolumes:
+  - name: logstash-certs
+    secret:
+      secretName: elasticsearch-http-certs
+
+extraVolumeMounts:
+  - name: logstash-certs
+    mountPath: /usr/share/logstash/config/certs
+    readOnly: true
+
+persistence:
+  enabled: true
+  storageClassName: "elasticsearch-hot"
+  size: 50Gi
+
+nodeSelector:
+  "elk/role": "logging"
+
+service:
+  type: ClusterIP
+  ports:
+    - name: beats
+      port: 5044
+      protocol: TCP
+    - name: http-input
+      port: 8080
+      protocol: TCP
+    - name: tcp-input
+      port: 5000
+      protocol: TCP
+    - name: monitoring
+      port: 9600
+      protocol: TCP
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
