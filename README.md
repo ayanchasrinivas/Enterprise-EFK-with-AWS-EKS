@@ -185,34 +185,3 @@ dashboards/
 └── Dashboard Import Automation
 ```
 
----
-
-# Use Cases
-
-This project demonstrates how Enterprise Organizations build centralized logging platforms for Kubernetes workloads, enabling DevOps and Platform Engineering teams to:
-
-* Aggregate logs from Kubernetes clusters
-* Centralize application and infrastructure logging
-* Search and analyze logs in real time
-* Monitor Elasticsearch cluster health
-* Build operational dashboards
-* Implement enterprise observability
-* Troubleshoot production workloads efficiently
-* Enable proactive monitoring and alerting
-
----
-
-# Target Audience
-
-This project serves as a comprehensive reference implementation for:
-
-* DevOps Engineers
-* Platform Engineers
-* Cloud Engineers
-* Kubernetes Administrators
-* Site Reliability Engineers (SREs)
-* Cloud Architects
-* Solutions Architects
-* Infrastructure Engineers
-
-who are looking to build and operate a production-ready centralized logging and observability platform on **Amazon EKS** using the **EFK Stack**, **Terraform**, **Helm**, and **Kubernetes**.
