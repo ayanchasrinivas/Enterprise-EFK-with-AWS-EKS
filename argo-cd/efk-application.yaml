@@ -1,0 +1,43 @@
+---
+apiversion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: efk-application
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+    # argocd.argoproj.io/hook-delete-policy: HookFailed
+    # argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/ayanchasrinivas/Enterprise-EFK-with-AWS-EKS.git
+    targetRevision: HEAD
+    path: kubernetes
+  destionation:
+    server: https://kubernetes.default.svc
+    namespace: logging
+  syncOptions:
+    automated:
+      prune: true
+      selfHeal: true
+  syncOptions:
+    PruneLast: true
+    CreateNamespace: true
+    ApplyOutOfSyncOnly: true
+    ServerSideApply: true
+  clusterResourceWhiteList:
+    - group: ""
+      kind: Namespace
+  namespaceResourceWhiteList:
+    - group: apps
+      kind: Deployment
+    - group: ""
+      kind: Service
+    - group: ""
+      kind: ConfigMap
+    - group: ""
+      kind: Secret
+...
