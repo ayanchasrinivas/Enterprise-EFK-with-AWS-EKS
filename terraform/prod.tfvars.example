@@ -1,0 +1,55 @@
+# Production Terraform Variables
+# Copy this to prod.tfvars and update values for your environment
+# NEVER commit prod.tfvars with real passwords to git!
+
+# AWS Configuration
+environment = "production"
+region      = "us-east-1"
+project     = "task-management"
+
+# EKS Configuration
+eks_cluster_name = "task-management-eks"
+eks_version      = "1.28"
+eks_node_count   = 3
+eks_node_type    = "t3.medium"
+
+# VPC Configuration
+vpc_cidr              = "10.0.0.0/16"
+public_subnet_cidrs   = ["10.0.1.0/24", "10.0.2.0/24"]
+private_subnet_cidrs  = ["10.0.10.0/24", "10.0.11.0/24"]
+enable_nat_gateway    = true
+single_nat_gateway    = false
+
+# RDS Configuration
+rds_engine          = "postgres"
+rds_engine_version  = "15.3"
+rds_instance_class  = "db.t3.micro"
+rds_allocated_storage = 20
+rds_storage_type    = "gp3"
+rds_port            = 5432
+rds_database_name   = "tasks_db"
+
+# ECR Configuration
+ecr_repositories = [
+  "task-api",
+  "notification-worker",
+  "frontend"
+]
+
+# Tags
+tags = {
+  Environment = "production"
+  Project     = "task-management"
+  ManagedBy   = "terraform"
+  CreatedAt   = "2026-06-30"
+}
+
+# SENSITIVE VALUES (use environment variables instead)
+# ===================================================
+# DO NOT PASTE REAL PASSWORDS HERE!
+#
+# Instead, use AWS Secrets Manager and export as environment variables:
+#
+# export TF_VAR_elasticsearch_password=$(aws secretsmanager get-secret-value --secret-id elasticsearch-password --query SecretString --output text)
+# export TF_VAR_kibana_encryption_key=$(aws secretsmanager get-secret-value --secret-id kibana-encryption-key --query SecretString --output text)
+# export TF_VAR_rds_master_password=$(aws secretsmanager get-secret-value --secret-id rds-master-password --query SecretString --output text)
