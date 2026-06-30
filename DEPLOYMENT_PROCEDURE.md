@@ -46,7 +46,7 @@ environment = "production"
 region = "us-east-1"
 eks_cluster_name = "task-management-eks"
 eks_version = "1.28"
-eks_node_count = 3
+eks_node_count = 3`
 rds_engine_version = "15.3"
 rds_instance_class = "db.t3.micro"
 EOF
