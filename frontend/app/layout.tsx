@@ -17,11 +17,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <p className="text-xs text-gray-400">Incident Management</p>
             </div>
             <ul className="space-y-2">
-              <li><a href="/" className="block p-2 hover:bg-gray-800 rounded">Dashboard</a></li>
-              <li><a href="/incidents" className="block p-2 hover:bg-gray-800 rounded">Incidents</a></li>
-              <li><a href="/on-call" className="block p-2 hover:bg-gray-800 rounded">On-Call</a></li>
+              <li><a href="/" className="block p-2 hover:bg-gray-800 rounded">Tasks</a></li>
               <li><a href="/notifications" className="block p-2 hover:bg-gray-800 rounded">Notifications</a></li>
-              <li><a href="/postmortems" className="block p-2 hover:bg-gray-800 rounded">Postmortems</a></li>
             </ul>
           </nav>
           <main className="flex-1 overflow-auto">

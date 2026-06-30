@@ -2,20 +2,19 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: opsbrain-ingress
-  namespace: opsbrain
+  name: task-app-ingress
+  namespace: default
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
     cert-manager.io/cluster-issuer: "letsencrypt-prod"
 spec:
   ingressClassName: nginx
   tls:
   - hosts:
-    - opsbrain.example.com
-    secretName: opsbrain-tls
+    - taskapp.example.com
+    secretName: taskapp-tls
   rules:
-  - host: opsbrain.example.com
+  - host: taskapp.example.com
     http:
       paths:
       - path: /
@@ -25,31 +24,10 @@ spec:
             name: frontend
             port:
               number: 3000
-      - path: /api/v1/incidents
+      - path: /api
         pathType: Prefix
         backend:
           service:
-            name: incident-service
+            name: task-api
             port:
-              number: 8080
-      - path: /api/v1/on-call
-        pathType: Prefix
-        backend:
-          service:
-            name: on-call-service
-            port:
-              number: 8081
-      - path: /api/v1/notifications
-        pathType: Prefix
-        backend:
-          service:
-            name: notification-service
-            port:
-              number: 8082
-      - path: /api/v1/postmortems
-        pathType: Prefix
-        backend:
-          service:
-            name: postmortem-service
-            port:
-              number: 8083
+              number: 3001

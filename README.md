@@ -1,190 +1,236 @@
-# Enterprise EFK Stack with AWS EKS
+# Task Management System - Kubernetes Demo Project
 
-<img width="800" height="250" alt="EFK" src="https://github.com/user-attachments/assets/790be226-281e-4439-934e-44aba8bf8fac" />
-<br>
-<br>
-A Production-Grade Centralized Logging and Observability Platform that Deploys, Configures, and Manages a Complete **EFK (Elasticsearch, Fluent Bit, Kibana)** Stack on **Amazon EKS** using **Terraform, Kubernetes, and Helm**. This repository demonstrates Enterprise Logging Architecture patterns commonly adopted by large-scale product companies and Enterprise Organizations for collecting, processing, storing, searching, and visualizing Kubernetes logs.
+A simple, production-ready web application showcasing **Kubernetes best practices** with microservices, containerization, and observability.
 
-The project is built using a Modular Infrastructure and Kubernetes Architecture that promotes Scalability, High Availability, Security, and Operational Excellence across Development, Staging, and Production Environments.
+## 🎯 Project Overview
 
----
+**Perfect for interviews:** This project demonstrates real-world K8s patterns in a clean, understandable way.
 
-# Key Features
-
-## Infrastructure & Platform
-
-* Amazon EKS cluster provisioning using Terraform
-* Modular Terraform architecture for reusable infrastructure
-* Environment-specific deployments (Development, Staging, Production)
-* Multi-AZ VPC networking architecture
-* Infrastructure as Code following enterprise best practices
-* Automated Kubernetes platform provisioning
-
----
-
-## Elasticsearch Cluster
-
-* Stateful Elasticsearch deployment on Kubernetes
-* Persistent storage using StatefulSets
-* High availability configuration
-* Secure cluster communication
-* Configurable resource allocation
-* Enterprise-grade search and indexing capabilities
-* Horizontal scaling support
-* Cluster health monitoring
-
----
-
-## Log Collection & Processing
-
-### Fluent Bit
-
-* Kubernetes-native log collection using DaemonSets
-* Automatic container log discovery
-* Kubernetes metadata enrichment
-* Namespace, Pod, and Container log tagging
-* Resource-efficient log forwarding
-* Cluster-wide log aggregation
-* RBAC-based secure access
-
-### Logstash
-
-* Centralized log processing pipeline
-* Flexible log parsing and transformation
-* Structured JSON log formatting
-* Log enrichment and filtering
-* Custom pipeline configurations
-* Elasticsearch indexing integration
-
----
-
-## Visualization & Analytics
-
-### Kibana
-
-* Interactive log exploration
-* Centralized Kubernetes log dashboards
-* Elasticsearch monitoring dashboards
-* NGINX access log dashboards
-* Real-time log search and filtering
-* Saved searches and visualizations
-* Enterprise observability interface
-
----
-
-## Monitoring & Alerting
-
-* Custom monitoring framework built with Python
-* Elasticsearch health monitoring
-* Fluent Bit status monitoring
-* Kibana availability monitoring
-* Logstash pipeline monitoring
-* Infrastructure metrics collection
-* Automated alerting framework
-* Notification integrations
-* Operational health dashboards
-
----
-
-## Security
-
-* TLS certificate management using Cert-Manager
-* Secure ingress configuration
-* Kubernetes RBAC implementation
-* Dedicated Service Accounts
-* ClusterRole and ClusterRoleBinding configuration
-* Secure Elasticsearch communication
-* Least-privilege access controls
-
----
-
-## Networking & Ingress
-
-* Kubernetes Ingress configuration
-* Secure external access to Kibana
-* Secure external access to Elasticsearch
-* Internal service discovery
-* Namespace isolation
-* Kubernetes Service abstraction
-* Enterprise networking patterns
-
----
-
-## Kubernetes Deployment
-
-* Native Kubernetes manifests
-* Helm-based deployments
-* StatefulSets for persistent workloads
-* Deployments for stateless services
-* ConfigMaps for centralized configuration
-* Namespace-based resource isolation
-* Production-ready resource definitions
-
----
-
-## Dashboard Automation
-
-* Pre-built Kibana dashboards
-* Automated dashboard import scripts
-* Kubernetes logging dashboards
-* Elasticsearch performance dashboards
-* NGINX access log dashboards
-* Infrastructure monitoring dashboards
-
----
-
-# Architecture Principles
-
-* Production-grade EFK architecture
-* Kubernetes-native logging platform
-* Modular Infrastructure as Code
-* Security-first deployment model
-* High availability and fault tolerance
-* Centralized log aggregation
-* Infrastructure automation
-* Environment isolation
-* Scalable log processing pipeline
-* Enterprise observability best practices
-* Cloud-native deployment architecture
-* Operational excellence and monitoring
-
----
-
-# Technology Stack
-
-**Terraform** • **AWS EKS** • **Amazon VPC** • **Kubernetes** • **Helm** • **Elasticsearch** • **Fluent Bit** • **Logstash** • **Kibana** • **Cert-Manager** • **Kubernetes Ingress** • **StatefulSets** • **ConfigMaps** • **RBAC** • **Python Monitoring Framework** • **TLS Certificates** • **YAML**
-
----
-
-# Repository Structure
-
-```text
-terraform/
-├── Modular AWS Infrastructure
-├── Amazon EKS
-├── Amazon VPC
-├── Environment-specific tfvars
-└── Production-ready Infrastructure as Code
-
-kubernetes/
-├── Elasticsearch
-├── Fluent Bit
-├── Logstash
-├── Kibana
-├── Cert-Manager
-├── Ingress
-└── Namespace Resources
-
-helm/
-├── Elasticsearch Values
-├── Fluent Bit Values
-├── Logstash Values
-└── Kibana Values
-
-dashboards/
-├── Kibana Dashboards
-├── Monitoring Framework
-├── Alerting Engine
-└── Dashboard Import Automation
 ```
+Frontend (Next.js 3000)
+    ↓
+Task API (Node.js 3001) → PostgreSQL
+    ↓
+Notification Worker (Background Job)
+    ↓
+All logs → ELK Stack (Elasticsearch, Kibana)
+```
+
+## 📦 Architecture
+
+| Component | Purpose | Technology |
+|-----------|---------|-----------|
+| **Frontend** | Task management dashboard | Next.js 14, React 18, Tailwind CSS |
+| **Task API** | REST API for CRUD operations | Node.js/Express.js |
+| **Notification Worker** | Background job processor | Node.js |
+| **Database** | Data persistence | PostgreSQL 15 |
+| **Logging** | Centralized log aggregation | ELK Stack (Elasticsearch, Kibana) |
+| **Orchestration** | Container management | Kubernetes (AWS EKS) |
+
+## 🚀 Quick Start (Local Development)
+
+### Prerequisites
+- Docker & Docker Compose
+- Node.js 20+ (for local development)
+
+### Start Everything Locally
+
+```bash
+git clone <repo-url>
+cd task-management-system
+
+# Start all services
+docker-compose up -d
+
+# Wait for services to start
+sleep 10
+
+# Check services
+docker-compose ps
+```
+
+### Access the Application
+
+| Service | URL | Purpose |
+|---------|-----|---------|
+| **Frontend** | http://localhost:3000 | Task Dashboard |
+| **API** | http://localhost:3001/api/tasks | Task API |
+| **Kibana** | http://localhost:5601 | Logs & Analytics |
+
+### Test the API
+
+```bash
+# Create task
+curl -X POST http://localhost:3001/api/tasks \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Learn Kubernetes","description":"Deploy to EKS"}'
+
+# Get all tasks
+curl http://localhost:3001/api/tasks
+
+# Update task
+curl -X PUT http://localhost:3001/api/tasks/{id} \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Learn Kubernetes","status":"COMPLETED"}'
+
+# Delete task
+curl -X DELETE http://localhost:3001/api/tasks/{id}
+```
+
+## 🐳 Docker Images
+
+```bash
+# Build all images
+docker build -t task-api:latest ./services/task-api
+docker build -t notification-worker:latest ./services/notification-worker
+docker build -t frontend:latest ./frontend
+```
+
+## ☸️ Kubernetes Deployment
+
+### Prerequisites
+- AWS EKS cluster
+- kubectl configured
+- Docker images in ECR
+
+### Deploy to EKS
+
+```bash
+# Create secrets
+kubectl create secret generic db-credentials \
+  --from-literal=DB_HOST=postgres.default.svc.cluster.local \
+  --from-literal=DB_PORT=5432 \
+  --from-literal=DB_NAME=tasks_db \
+  --from-literal=DB_USER=postgres \
+  --from-literal=DB_PASSWORD=your-password
+
+# Apply manifests
+kubectl apply -f kubernetes/opsbrain/
+
+# Verify deployment
+kubectl get deployments
+kubectl get pods
+
+# Port-forward for local access
+kubectl port-forward svc/frontend 3000:3000
+kubectl port-forward svc/task-api 3001:3001
+
+# View logs
+kubectl logs -f deployment/task-api
+```
+
+## 📊 K8s Concepts Demonstrated
+
+✅ **Deployments** - Rolling updates, replicas
+✅ **Services** - ClusterIP, service discovery
+✅ **HPA** - Auto-scaling based on CPU
+✅ **PDB** - High availability during maintenance
+✅ **Secrets** - Sensitive credential management
+✅ **ConfigMaps** - Configuration management
+✅ **Health Checks** - Liveness & readiness probes
+✅ **Security** - Non-root user, read-only FS, dropped capabilities
+✅ **Resource Limits** - CPU/Memory management
+✅ **Pod Anti-Affinity** - Spread pods across nodes
+✅ **Ingress** - External traffic routing with TLS
+✅ **StatefulSets** - Persistent storage for database
+
+## 📁 Project Structure
+
+```
+task-management-system/
+├── frontend/                      # Next.js frontend
+│   ├── app/page.tsx              # Task dashboard
+│   ├── Dockerfile                # Multi-stage build
+│   └── package.json
+├── services/
+│   ├── task-api/                 # Express API
+│   │   ├── src/index.js
+│   │   ├── Dockerfile
+│   │   └── package.json
+│   └── notification-worker/      # Background worker
+│       ├── src/worker.js
+│       ├── Dockerfile
+│       └── package.json
+├── kubernetes/opsbrain/          # K8s manifests
+│   ├── task-api-deployment.yaml
+│   ├── notification-worker-deployment.yaml
+│   ├── frontend-deployment.yaml
+│   └── ingress.yaml
+├── docker-compose.yml            # Local stack
+└── README.md
+```
+
+## 🎤 Interview Talking Points
+
+**Architecture:**
+- "Microservices pattern with 2 independent services (API & Worker)"
+- "Each service independently deployable with Docker"
+- "PostgreSQL for persistent storage"
+
+**Kubernetes:**
+- "Production-ready K8s patterns: rolling updates, HPA, PDB"
+- "All pods run as non-root with read-only filesystems"
+- "Pod anti-affinity ensures fault tolerance across nodes"
+
+**Observability:**
+- "Centralized logging via ELK stack"
+- "Health checks ensure only healthy pods receive traffic"
+
+**Scalability:**
+- "HPA automatically scales pods based on CPU"
+- "Pod Disruption Budgets prevent cascading failures"
+
+## 🔧 Configuration
+
+**Environment Variables:**
+```yaml
+DB_HOST: postgres
+DB_PORT: 5432
+DB_NAME: tasks_db
+DB_USER: postgres
+DB_PASSWORD: postgres
+NEXT_PUBLIC_API_BASE_URL: http://task-api:3001
+```
+
+## 📝 API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/tasks` | Get all tasks |
+| GET | `/api/tasks/:id` | Get single task |
+| POST | `/api/tasks` | Create task |
+| PUT | `/api/tasks/:id` | Update task |
+| DELETE | `/api/tasks/:id` | Delete task |
+| GET | `/health` | Health check |
+
+## 🐛 Troubleshooting
+
+```bash
+# Check pod logs
+kubectl logs -f pod/<pod-name>
+
+# Describe pod for events
+kubectl describe pod <pod-name>
+
+# Check resource usage
+kubectl top pods
+kubectl top nodes
+
+# Port-forward for debugging
+kubectl port-forward svc/<service> 5432:5432
+```
+
+## 📚 Tech Stack
+
+**Frontend:** Next.js 14, React 18, Tailwind CSS, TypeScript
+**Backend:** Node.js, Express.js
+**Database:** PostgreSQL 15
+**Containerization:** Docker
+**Orchestration:** Kubernetes/EKS
+**Logging:** Elasticsearch, Kibana
+**Monitoring:** Prometheus (optional)
+
+## 📄 License
+
+MIT - Use for learning and interviews
 
