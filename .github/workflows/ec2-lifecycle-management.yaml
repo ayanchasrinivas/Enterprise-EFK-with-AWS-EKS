@@ -1,0 +1,43 @@
+name: start ec2
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  start-instance:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-south-1
+
+      - name: Start EC2 instances
+        run: |
+          aws ec2 start-instances \
+            --instance-ids i-01e98c8f861210ed2
+
+      - name: Wait Until Running
+        run: |
+          aws ec2 wait instance-running \
+            --instance-ids i-01e98c8f861210ed2
+
+      - name: Show Instance Status
+        run: |
+          aws ec2 describe-instances \
+            --instance-ids i-01e98c8f861210ed2 \
+            --query "Reservations[0].Instances[0].State.Name"
+
+
+
+
+
+
+
+
+      
