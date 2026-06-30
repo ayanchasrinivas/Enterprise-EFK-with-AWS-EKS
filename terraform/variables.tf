@@ -82,3 +82,27 @@ variable "kibana_encryption_key" {
   type      = string
   sensitive = true
 }
+
+variable "region" {
+  description = "AWS region"
+  type        = string
+  default     = "ap-south-1"
+}
+
+variable "elasticsearch_password" {
+  description = "Elasticsearch password"
+  type        = string
+  sensitive   = true
+}
+
+variable "kibana_encryption_key" {
+  description = "Kibana encryption key"
+  type        = string
+  sensitive   = true
+}
+
+variable "rds_master_password" {
+  description = "RDS master password"
+  type        = string
+  sensitive   = true
+}

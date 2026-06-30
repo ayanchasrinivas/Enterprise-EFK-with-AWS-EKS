@@ -1,13 +1,13 @@
 pipeline {
     agent any
     environment = {
-        AWS_REGION = "ap-south-1"
-        CLUSTER_NAME = "elk-efk-prod"
+        AWS_REGION = env.AWS_REGION
+        CLUSTER_NAME = env.CLUSTER_NAME
         ECR_REGISTRY = "${sh(script: 'aws sts get-caller-identity --query Account --output text', returnStdout: true).trim()}.dkr.ecr.${AWS_REGION}.amazonaws.com"
-        IMAGE_NAME = "elk-efk-monitor"
+        IMAGE_NAME = env.IMAGE_NAME
         IMAGE_TAG = "${env.GIT_COMMIT[0..7]}"
-        ARGOCD_SERVER = "argocd.ayanchasrinivas.space"
-        DOMAIN = "ayanchasrinivas.space"
+        ARGOCD_SERVER = env.ARGOCD_SERVER
+        DOMAIN = env.DOMAIN
     }
 
     options = {
