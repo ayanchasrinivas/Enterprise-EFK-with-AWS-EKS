@@ -1,0 +1,53 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: context-collector-service
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka.opsbrain.svc.cluster.local:9092}
+
+opsbrain:
+  kafka:
+    topic:
+      raw-alerts: ${RAW_ALERTS_TOPIC:raw-alerts}
+      alert-context: ${ALERT_CONTEXT_TOPIC:alert-context}
+
+  elasticsearch:
+    url: ${ES_URL:https://elasticsearch-master.logging.svc.cluster.local:9200}
+    username: ${ES_USERNAME:elastic}
+    password: ${ES_PASSWORD:changeme}
+    insecure-skip-verify: ${ES_INSECURE:true}   # mount CA in prod instead
+
+  prometheus:
+    url: ${PROMETHEUS_URL:http://prometheus-server.monitoring.svc.cluster.local}
+
+  grafana:
+    url: ${GRAFANA_URL:http://grafana.monitoring.svc.cluster.local}
+    token: ${GRAFANA_TOKEN:}
+
+  argocd:
+    url: ${ARGOCD_URL:https://argocd-server.argocd.svc.cluster.local}
+    token: ${ARGOCD_TOKEN:}
+    insecure-skip-verify: ${ARGOCD_INSECURE:true}
+
+  collect:
+    log-index-pattern: ${LOG_INDEX_PATTERN:logs-*}
+    log-lookback-minutes: 15
+    log-max-hits: 20
+    deploy-correlation-minutes: 30
+    per-collector-timeout-seconds: 8
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+logging:
+  level:
+    com.opsbrain: INFO

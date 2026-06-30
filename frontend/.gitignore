@@ -1,0 +1,12 @@
+.next
+out
+*.log
+node_modules
+.env.local
+.env.*.local
+.DS_Store
+.vercel
+.eslintcache
+coverage
+dist
+build

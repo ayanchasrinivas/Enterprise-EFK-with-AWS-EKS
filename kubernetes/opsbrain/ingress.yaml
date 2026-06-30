@@ -1,0 +1,55 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: opsbrain-ingress
+  namespace: opsbrain
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - opsbrain.example.com
+    secretName: opsbrain-tls
+  rules:
+  - host: opsbrain.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 3000
+      - path: /api/v1/incidents
+        pathType: Prefix
+        backend:
+          service:
+            name: incident-service
+            port:
+              number: 8080
+      - path: /api/v1/on-call
+        pathType: Prefix
+        backend:
+          service:
+            name: on-call-service
+            port:
+              number: 8081
+      - path: /api/v1/notifications
+        pathType: Prefix
+        backend:
+          service:
+            name: notification-service
+            port:
+              number: 8082
+      - path: /api/v1/postmortems
+        pathType: Prefix
+        backend:
+          service:
+            name: postmortem-service
+            port:
+              number: 8083

@@ -1,0 +1,119 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: context-collector
+  namespace: opsbrain
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: context-collector-reader
+rules:
+  - apiGroups: [""]
+    resources: ["events", "pods", "nodes"]
+    verbs: ["get", "list"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets", "statefulsets"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: context-collector-reader-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: ontext-collector-reader
+subjects:
+  - kind: ServiceAccount
+    name: context-collector
+    namespace: opsbrain
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: context-collector-service
+  namespace: opsbrain
+  labels:
+    app: context-collector-service
+    tier: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: context-collector-service
+  template:
+    metadata:
+      labels:
+        app: context-collector-service
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8082"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      serviceAccountName: context-collector
+      containers:
+        - name: context-collector-service
+          image: <ECR_REGISTRY>/context-collector-service:latest
+          ports:
+            - containerPort: 8082
+          env:
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: "kafka.opsbrain.svc.cluster.local:9092"
+            - name: ES_URL
+              value: "https://elasticsearch-master.logging.svc.cluster.local:9200"
+            - name: ES_USERNAME
+              valueFrom:
+                secretKeyRef: { name: opsbrain-secrets, key: es-username }
+            - name: ES_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: opsbrain-secrets, key: es-password }
+            - name: ARGOCD_TOKEN
+              valueFrom:
+                secretKeyRef: { name: opsbrain-secrets, key: argocd-token }
+            - name: GRAFANA_TOKEN
+              valueFrom:
+                secretKeyRef: { name: opsbrain-secrets, key: grafana-token }
+          
+          resources:
+            requests:
+              cpu: "300m"
+              memory: "768Mi"
+            limits:
+              cpu: "1500m"
+              memory: "1536Mi"
+          
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8082
+            initialDelaySeconds: 45
+            periodSeconds: 15
+          
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8082
+            initialDelaySeconds: 35
+            periodSeconds: 10
+
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: context-collector-service
+  namespace: opsbrain
+spec:
+  type: ClusterIP
+  selector:
+    app: context-collector-service
+  ports:
+    - port: 80
+      targetPort: 8082
+...

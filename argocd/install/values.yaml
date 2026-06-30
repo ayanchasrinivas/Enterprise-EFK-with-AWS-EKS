@@ -1,0 +1,40 @@
+---
+global:
+  domain: argocd.ayanchasrinivas.space
+server:
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: "letsencrypt-prod"
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    hosts:
+      - argocd.ayanchasrinivas.space
+    tls:
+      - secretName: argocd-tls
+        hosts:
+          - argocd.ayanchasrinivas.space
+  
+  extraArgs:
+  - --insecure
+
+configs:
+  params:
+    server.insecure: "true"
+  repositories: {}
+
+repoServer:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+applicationSet:
+  enabled: true
+
+notifications:
+  enabled: true

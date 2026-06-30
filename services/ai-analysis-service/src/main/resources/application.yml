@@ -1,0 +1,33 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: ai-analysis-service
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka.opsbrain.svc.cluster.local:9092}
+
+opsbrain:
+  kafka:
+    topic:
+      alert-context: ${ALERT_CONTEXT_TOPIC:alert-context}
+      incident-analysis: ${INCIDENT_ANALYSIS_TOPIC:incident-analysis}
+  bedrock:
+    # Bedrock requires the anthropic. prefix on the model id.
+    model-id: ${BEDROCK_MODEL_ID:anthropic.claude-opus-4-8}
+    max-tokens: ${BEDROCK_MAX_TOKENS:4096}
+
+# AWS_REGION is read by the Bedrock backend; set via env (below) or pod region.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+logging:
+  level:
+    com.opsbrain: INFO

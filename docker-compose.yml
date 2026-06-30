@@ -1,0 +1,204 @@
+version: '3.8'
+
+services:
+  # Databases
+  postgres-incident:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: incident_db
+      POSTGRES_USER: incident_user
+      POSTGRES_PASSWORD: incident_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - incident_db_data:/var/lib/postgresql/data
+
+  postgres-oncall:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: on_call_db
+      POSTGRES_USER: oncall_user
+      POSTGRES_PASSWORD: oncall_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - oncall_db_data:/var/lib/postgresql/data
+
+  postgres-notification:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: notification_db
+      POSTGRES_USER: notification_user
+      POSTGRES_PASSWORD: notification_password
+    ports:
+      - "5434:5432"
+    volumes:
+      - notification_db_data:/var/lib/postgresql/data
+
+  postgres-postmortem:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: postmortem_db
+      POSTGRES_USER: postmortem_user
+      POSTGRES_PASSWORD: postmortem_password
+    ports:
+      - "5435:5432"
+    volumes:
+      - postmortem_db_data:/var/lib/postgresql/data
+
+  # Kafka
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+    ports:
+      - "2181:2181"
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  # Elasticsearch
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.10.0
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+
+  # Kibana
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.10.0
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+    environment:
+      ELASTICSEARCH_HOSTS: '["http://elasticsearch:9200"]'
+
+  # Services
+  incident-service:
+    build:
+      context: ./services/incident-service
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres-incident
+      - kafka
+    environment:
+      DB_HOST: postgres-incident
+      DB_PORT: 5432
+      DB_NAME: incident_db
+      DB_USER: incident_user
+      DB_PASSWORD: incident_password
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+
+  on-call-service:
+    build:
+      context: ./services/on-call-service
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8081"
+    depends_on:
+      - postgres-oncall
+      - kafka
+    environment:
+      DB_HOST: postgres-oncall
+      DB_PORT: 5432
+      DB_NAME: on_call_db
+      DB_USER: oncall_user
+      DB_PASSWORD: oncall_password
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SERVER_PORT: 8081
+
+  notification-service:
+    build:
+      context: ./services/notification-service
+      dockerfile: Dockerfile
+    ports:
+      - "8082:8082"
+    depends_on:
+      - postgres-notification
+      - kafka
+    environment:
+      DB_HOST: postgres-notification
+      DB_PORT: 5432
+      DB_NAME: notification_db
+      DB_USER: notification_user
+      DB_PASSWORD: notification_password
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SERVER_PORT: 8082
+      NOTIFICATION_SLACK_ENABLED: "false"
+      NOTIFICATION_TEAMS_ENABLED: "false"
+
+  postmortem-service:
+    build:
+      context: ./services/postmortem-service
+      dockerfile: Dockerfile
+    ports:
+      - "8083:8083"
+    depends_on:
+      - postgres-postmortem
+      - kafka
+    environment:
+      DB_HOST: postgres-postmortem
+      DB_PORT: 5432
+      DB_NAME: postmortem_db
+      DB_USER: postmortem_user
+      DB_PASSWORD: postmortem_password
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SERVER_PORT: 8083
+      AWS_REGION: us-east-1
+
+  # Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    depends_on:
+      - incident-service
+      - on-call-service
+      - notification-service
+      - postmortem-service
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8080
+      NEXT_PUBLIC_INCIDENT_API: http://localhost:8080/api/v1/incidents
+      NEXT_PUBLIC_ONCALL_API: http://localhost:8081/api/v1
+      NEXT_PUBLIC_NOTIFICATION_API: http://localhost:8082/api/v1/notifications
+      NEXT_PUBLIC_POSTMORTEM_API: http://localhost:8083/api/v1/postmortems
+
+volumes:
+  incident_db_data:
+  oncall_db_data:
+  notification_db_data:
+  postmortem_db_data:
+  redis_data:
+  elasticsearch_data:
+
+networks:
+  default:
+    name: opsbrain-network

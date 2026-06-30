@@ -1,0 +1,34 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: alert-ingestion-service
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka.opsbrain.svc.cluster.local:9092}
+
+opsbrain:
+  kafka:
+    topic:
+      raw-alerts: ${RAW_ALERTS_TOPIC:raw-alerts}
+
+# Actuator: health for k8s probes, prometheus so our OWN service is observable
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true     # exposes /health/liveness and /health/readiness
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+logging:
+  level:
+    com.opsbrain: INFO
+  pattern:
+    # JSON-ish single line so Fluent Bit + ELK parse cleanly
+    console: '{"ts":"%d{ISO8601}","level":"%level","logger":"%logger{36}","msg":"%msg"}%n'
