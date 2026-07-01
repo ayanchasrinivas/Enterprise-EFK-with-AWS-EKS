@@ -195,7 +195,7 @@ pipeline {
                 branch "main"
             }
             steps {
-                sh """
+                sh '''
                     for i in ${seq 1 12}; do
                         STATUS=$(curl -sk -o /dev/null -w "%{http_code}" https://kibana.${DOMAIN}/api/status)
                         if[ "$STATUS" = "200" ]; then
@@ -213,14 +213,14 @@ pipeline {
                         echo "ERROR: Elasticsearch cluster is RED"
                         exit 1
                     fi
-                """
+                '''
                 withCredentials([string(credentialsId: 'es-password', variable: 'ES_PASSWORD')]) {
-                sh """
+                sh '''
                     ES_HEALTH=$(curl -sk -u "elastic:${ES_PASSWORD}" \
                         https://elasticsearch.${DOMAIN}/_cluster/health | jq -r '.status')
                     echo "ES cluster status: ${ES_HEALTH}"
                     [ "$ES_HEALTH" != "red" ] || exit 1
-                """
+                '''
             }
         }
     }
