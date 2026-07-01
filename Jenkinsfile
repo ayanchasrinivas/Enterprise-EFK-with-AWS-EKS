@@ -234,7 +234,18 @@ pipeline {
             echo "Pipeline FAILED - Check stage logs"
         }
         always {
-            cleanWs()
+            script {
+                if (env.WORKSPACE?.trim()) {
+                    echo "Cleaning workspace: ${env.WORKSPACE}"
+                    cleanWs(
+                        cleanWhenNotBuilt: false,
+                        deleteDirs: true,
+                        disableDeferredWipeout: true
+                    )
+                } else {
+                    echo "No workspace available. Skipping cleanWs()."
+                }
+            }
         }
     }
 }
