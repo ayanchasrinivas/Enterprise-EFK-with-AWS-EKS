@@ -30,87 +30,13 @@ module "eks" {
   }
 
   eks_managed_node_groups = {
-    es_hot = {
-      name           = "es-hot"
-      instance_types = [var.es_hot_instance_type]
-      min_size       = var.es_hot_node_count
-      max_size       = var.es_hot_node_count + 2
-      desired_size   = var.es_hot_node_count
-      ami_type       = "AL2_ARM_64"
-
-      labels = {
-        role       = "elasticsearch"
-        "elk/role" = "es-hot"
-      }
-
-      taints = [{
-        key    = "elk/elasticsearch"
-        value  = "hot"
-        effect = "NO_SCHEDULE"
-      }]
-    }
-
-    es_warm = {
-      name           = "es-warm"
-      instance_types = [var.es_warm_instance_type]
-      min_size       = var.es_warm_node_count
-      max_size       = var.es_warm_node_count + 2
-      desired_size   = var.es_warm_node_count
-      ami_type       = "AL2_ARM_64"
-
-      labels = {
-        role       = "elasticsearch"
-        "elk/role" = "es-warm"
-      }
-
-      taints = [{
-        key    = "elk/elasticsearch"
-        value  = "warm"
-        effect = "NO_SCHEDULE"
-      }]
-    }
-
-    es_master = {
-      name           = "es-master"
-      instance_types = [var.es_master_instance_type]
-      min_size       = var.es_master_node_count
-      max_size       = var.es_master_node_count
-      desired_size   = var.es_master_node_count
-      ami_type       = "AL2_ARM_64"
-
-      labels = {
-        role       = "elasticsearch"
-        "elk/role" = "es-master"
-      }
-
-      taints = [{
-        key    = "elk/elasticsearch"
-        value  = "master"
-        effect = "NO_SCHEDULE"
-      }]
-    }
-
-    logging = {
-      name           = "logging"
-      instance_types = [var.logging_instance_type]
-      min_size       = 2
-      max_size       = 6
-      desired_size   = 3
-      ami_type       = "AL2_ARM_64"
-
-      labels = {
-        role       = "logging"
-        "elk/role" = "logging"
-      }
-    }
-
     system = {
       name           = "system"
       instance_types = [var.system_instance_type]
       min_size       = 2
       max_size       = 4
       desired_size   = 2
-      ami_type       = "AL2_ARM_64"
+      ami_type       = "AL2023_x86_64_STANDARD"
 
       labels = {
         role       = "system"

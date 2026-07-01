@@ -3,9 +3,9 @@ pipeline {
     environment = {
         AWS_REGION = env.AWS_REGION
         CLUSTER_NAME = env.CLUSTER_NAME
-        ECR_REGISTRY = "${sh(script: 'aws sts get-caller-identity --query Account --output text', returnStdout: true).trim()}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+        AWS_ACCOUNT_ID = credentials('aws-account-id')
+        ECR_REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
         IMAGE_NAME = env.IMAGE_NAME
-        IMAGE_TAG = "${env.GIT_COMMIT[0..7]}"
         ARGOCD_SERVER = env.ARGOCD_SERVER
         DOMAIN = env.DOMAIN
     }
@@ -106,27 +106,52 @@ pipeline {
             }
         }
 
-        stage("Docker Build & Push") {
+        stage("Build Task-API") {
             when {
                 anyOf {
                     branch "main"
                     branch "develop"
                 }
-                changeset "monitoring/**"
+                changeset "services/task-api/**"
             }
             steps {
                 sh """
                     aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY}
-                    aws ecr describe-repositories --repository-names ${IMAGE_NAME} --region ${AWS_REGION} 2>/dev/null || \
-                        aws ecr create-repository --repository-name ${IMAGE_NAME} --region ${AWS_REGION}
-                    
-                    docker build -t ${ECR_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} \
-                        -t ${ECR_REGISTRY}/${IMAGE_NAME}:latest
-                        -f docker/Dockerfile \
-                        monitoring/
-                    
-                    docker push ${ECR_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}
-                    docker push ${ECR_REGISTRY}/${IMAGE_NAME}:latest
+
+                    docker build -t ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/srinivas/task-api:latest -f services/task-api/Dockerfile serices/task-api/
+                    docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/srinivas/task-api:latest
+                """
+            }
+        }
+
+        stage("Build Fronted") {
+            when {
+                anyOf {
+                    branch "main"
+                    branch "develop"
+                }
+                changeset "frontend/**"
+            }
+            steps {
+                sh """
+                    docker build -t ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/srinivas/frontend:latest -f frontend/Dockerfile frontend/
+                    docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/srinivas/frontend:latest
+                """
+            }
+        }
+
+        stage("Build Notification Worker Microservice") {
+            when {
+                anyOf {
+                    branch "main"
+                    branch "develop"
+                }
+                changeset "services/notification-worker/**"
+            }
+            steps {
+                sh """
+                    docker build -t ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/srinivas/notification-worker:latest -f services/notification-worker/Dockerfile serices/notification-worker/
+                    docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/srinivas/notification-worker:latest
                 """
             }
         }
