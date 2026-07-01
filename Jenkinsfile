@@ -1,13 +1,13 @@
 pipeline {
     agent any
     environment {
-        AWS_REGION = ${env.AWS_REGION}
-        CLUSTER_NAME = ${env.CLUSTER_NAME}
+        AWS_REGION = "${env.AWS_REGION}"
+        CLUSTER_NAME = "${env.CLUSTER_NAME}"
         AWS_ACCOUNT_ID = credentials('aws-account-id')
         ECR_REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
-        IMAGE_NAME = ${env.IMAGE_NAME}
-        ARGOCD_SERVER = ${env.ARGOCD_SERVER}
-        DOMAIN = ${env.DOMAIN}
+        IMAGE_NAME = "${env.IMAGE_NAME}"
+        ARGOCD_SERVER = "${env.ARGOCD_SERVER}"
+        DOMAIN = "${env.DOMAIN}"
     }
 
     options {
@@ -221,6 +221,7 @@ pipeline {
                     echo "ES cluster status: ${ES_HEALTH}"
                     [ "$ES_HEALTH" != "red" ] || exit 1
                 '''
+                }
             }
         }
     }
