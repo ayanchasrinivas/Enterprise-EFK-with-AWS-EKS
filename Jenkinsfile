@@ -26,11 +26,11 @@ pipeline {
             }
             steps {
                 dir("terraform") {
-                    sh """
+                    sh '''
                         terraform init -backend=false
                         terrafrom validate
                         terrafrom fmt -check -recursive
-                    """
+                    '''
                 }
             }
         }
@@ -50,14 +50,14 @@ pipeline {
                     string(credentialsId: "kibana-encryption-key", variable: "KIBANA_ENCRYPTION_KEY")
                 ]) {
                     dir(terraform) {
-                        sh """
+                        sh '''
                             terraform init
                             terraform plan \
                                 -var-file=prod.tfvars \
                                 -var="elasticsearch_password=${ES_PASSWORD}" \
                                 -var="kibana_encryption_key=${KIBANA_ENCRYPTION_KEY} \
                                 -out=tfplan
-                        """
+                        '''
                     }
                 }
             }
@@ -73,12 +73,12 @@ pipeline {
                 changeset "helm/**"
             }
             steps {
-                sh """
+                sh '''
                     for chart in elasticsearch kibana logstash fluent-bit; do
                         echo "Linting ---- helm/${chart} ---- "
                         helm lint helm/${chart}/ --strict
                     done
-                """
+                '''
             }
         }
 
@@ -87,7 +87,7 @@ pipeline {
                 changeset "monitoring/**"
             }
             steps {
-                sh """
+                sh '''
                     cd monitoring
                     pip install -r requirements.txt --quiet
                     pip install pytest pytest-cov --quiet
@@ -96,7 +96,7 @@ pipeline {
                         --cov-report=xml.coverage.xml \
                         --cov-report=term-missing \
                         || echo "No Tests found - Skipping"
-                """
+                '''
             }
             posts {
                 always {
@@ -115,12 +115,12 @@ pipeline {
                 changeset "services/task-api/**"
             }
             steps {
-                sh """
+                sh '''
                     aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY}
 
                     docker build -t ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/srinivas/task-api:latest -f services/task-api/Dockerfile serices/task-api/
                     docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/srinivas/task-api:latest
-                """
+                '''
             }
         }
 
@@ -133,10 +133,10 @@ pipeline {
                 changeset "frontend/**"
             }
             steps {
-                sh """
+                sh '''
                     docker build -t ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/srinivas/frontend:latest -f frontend/Dockerfile frontend/
                     docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/srinivas/frontend:latest
-                """
+                '''
             }
         }
 
@@ -149,10 +149,10 @@ pipeline {
                 changeset "services/notification-worker/**"
             }
             steps {
-                sh """
+                sh '''
                     docker build -t ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/srinivas/notification-worker:latest -f services/notification-worker/Dockerfile serices/notification-worker/
                     docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/srinivas/notification-worker:latest
-                """
+                '''
             }
         }
 
@@ -162,7 +162,7 @@ pipeline {
             }
             steps {
                 withCredentials([string(credentialsId: 'argocd-auth-token', variable: 'ARGOCD_TOKEN')]) {
-                    sh """
+                    sh '''
                         which argocd || (
                             curl -sSL -o /usr/local/bin/argocd \
                                 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
@@ -185,7 +185,7 @@ pipeline {
                                 --timeout 600 \
                                 --grpc-web
                         done
-                    """    
+                    '''    
                 }
             }
         }
