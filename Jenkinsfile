@@ -3,7 +3,7 @@ pipeline {
     environment {
         AWS_REGION = "${env.AWS_REGION}"
         CLUSTER_NAME = "${env.CLUSTER_NAME}"
-        AWS_ACCOUNT_ID = credentials('aws-account-id')
+        AWS_ACCOUNT_ID = credentials('aws-service-account-credentials')
         ECR_REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
         IMAGE_NAME = "${env.IMAGE_NAME}"
         ARGOCD_SERVER = "${env.ARGOCD_SERVER}"
