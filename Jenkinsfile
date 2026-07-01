@@ -1,6 +1,6 @@
 pipeline {
     agent any
-    environment = {
+    environment {
         AWS_REGION = env.AWS_REGION
         CLUSTER_NAME = env.CLUSTER_NAME
         AWS_ACCOUNT_ID = credentials('aws-account-id')
@@ -10,7 +10,7 @@ pipeline {
         DOMAIN = env.DOMAIN
     }
 
-    options = {
+    options {
         buildDiscarder(logRotator(numToKeepStr: '20'))
         timeout(time: 60, unit: 'MINUTES')
         timestamps()
@@ -98,7 +98,7 @@ pipeline {
                         || echo "No Tests found - Skipping"
                 '''
             }
-            posts {
+            post {
                 always {
                     publishCoverage adapters: [coberturaAdapter('monitoring/coverage.xml')],
                     sourceFileResolver: sourceFiles('STORE_ALL_BUILD')
